@@ -1,6 +1,6 @@
 <?php
 /*
- * mailhost-resolver
+ * mailhost-resolver $Revision: 3459 $
  * https://github.com/metaworx/mailhost-resolver
  *
  *
@@ -19,11 +19,11 @@ use Rephlux\SpfResolver\SpfResolver;
 function return_error($text) {
 	
 	http_response_code(400); # bad request
-	die($text);
+	die("#\n# $text");
 }
 
 
-function print_ip($IPv, $ip, $hostname) {
+function print_ip($IPv, $ip='', $hostname='') {
 	
 	# could use something more sophisticated. like
 	# http://blog.markhatton.co.uk/2011/03/15/regular-expressions-for-ip-addresses-cidr-ranges-and-hostnames/
@@ -38,7 +38,7 @@ function print_ip($IPv, $ip, $hostname) {
 	#
 	#else
 	
-	if ($ip && (!isset($IPv) || (($IPv == 4) == preg_match('/^\d+\./', $ip)))) {
+	if ($ip && ($IPv == "" || (($IPv == 4) == preg_match('/^\d+\./', $ip)))) {
 	
 		echo "$ip\n";
 	
@@ -48,10 +48,7 @@ function print_ip($IPv, $ip, $hostname) {
 	
 		echo "# $hostname\n";
 		
-		
-		if (!isset($IPv) || $IPv == 4) {
-			
-			$hosts = gethostbynamel($hostname);
+		if (($IPv == "" || $IPv == 4) && $hosts = gethostbynamel($hostname)) {
 			
 			foreach ($hosts as $ip) {
 				
@@ -60,10 +57,8 @@ function print_ip($IPv, $ip, $hostname) {
 			}
 		}
 		
-		if (!isset($IPv) || $IPv == 6) {
+		if (($IPv == "" || $IPv == 6) && $hosts = gethostbynamel6($hostname)) {
 		
-			$hosts = gethostbynamel6($hostname);
-			
 			foreach ($hosts as $ip) {
 				
 				echo "$ip\n";
@@ -137,16 +132,20 @@ header("Pragma: no-cache"); //HTTP 1.0
 header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); // Date in the past
 header('Content-Type:text/plain');
 
-echo "# $tsstring\n";
+echo "# File generated $tsstring by\n";
+echo '# mailhost-resolver $Revision: 3459 $'."\n";
+echo "# https://github.com/metaworx/mailhost-resolver\n";
+echo "#\n";
+
 
 $maxlen=300;
 
 
 if (!isset($_GET['domain']))
-	return_error("# missing domain parameter\n");
+	return_error("missing domain parameter\n");
 
 if (strlen($_GET['domain']) > $maxlen)
-	return_error("# domain parameter exeeds $maxlen\n");
+	return_error("domain parameter exeeds $maxlen\n");
 
 $domain=$_GET['domain'];
 
@@ -158,7 +157,7 @@ if (extension_loaded('intl')) {
 	
 } else {
 	
-	echo "# INFO: international domain-names not supported\n";
+	echo "# INFO: international domain-names not supported\n#\n";
 	
 }
 
@@ -168,20 +167,26 @@ $regex='^(?!\-)(?:[a-zA-Z\d\-]{0,62}[a-zA-Z\d]\.){1,126}(?!\d+)[a-zA-Z\d]{1,63}$
 
 
 if (!preg_match("/$regex/i", $domain))
-	return_error("# no valid domain name supplied: '$domain'\n");
+	return_error("no valid domain name supplied: '$domain'\n");
 
+echo "# domain: $domain\n";
 
-if (isset($_GET['IPv'])) {
+if (!isset($_GET['IPv'])) {
 	
-	if (strlen($_GET['IPv']) > 2) return_error("# IP version parameter exeeds 1 char\n");
+	$IPv="";
+	
+} else {
+	
+	if (strlen($_GET['IPv']) > 2) return_error("IP version parameter exeeds 1 char\n");
 	
 	$IPv=$_GET['IPv'];
 	
 	if ($IPv != 4 && $IPv != 6)
-		return_error("# no valid IP version: $IPv\n");
+		return_error("no valid IP version: $IPv\n");
 	
 }
 
+echo "# IP version: ".($IPv?$IPv:"any")."\n";
 
 if (!isset($_GET['type'])) {
 	
@@ -190,14 +195,16 @@ if (!isset($_GET['type'])) {
 } else {
 	
 	if (strlen($_GET['type']) > 3)
-		return_error("# type parameter too long\n");
+		return_error("type parameter too long\n");
 	
 	$type=$_GET['type'];
 	
 	if ($type != "mx" && $type != "spf")
-		return_error("# unknown type $type\n");
+		return_error("unknown type $type\n");
 	
 }
+
+echo "# Resource type: ".($type?$type:"any")."\n";
 
 
 if ($type == "" || $type == "spf") {
